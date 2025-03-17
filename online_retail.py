@@ -1,6 +1,7 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.pyplot as plt #for visualization
+import seaborn as sns #for visualization
+from sklearn.preprocessing import LabelEncoder #for label encoding
 
 # load the dataset file
 df = pd.read_csv("online_retail.csv\online_retail.csv")
@@ -94,5 +95,37 @@ df_cleaned = df[(df['UnitPrice'] >= lower_bound) & (df['UnitPrice'] <= upper_bou
 df = df_cleaned
 print(f"Size of dataset after removing outliers: {df.shape}")
 
-print(df.info())
-# print(df.head())
+
+
+
+# •	Convert categorical variables (one-hot encoding, Label Encoding).
+# Identify Categorical Columns
+categorical_columns = df.select_dtypes(include=['object']).columns
+print("Categorical columns:", categorical_columns)
+
+# check the cardinality of the categorical columns
+for col in categorical_columns:
+    if df[col].nunique() <= 10:
+        print(f"{col}: Low cardinatilty (apply One-Hot Encoding)")
+    else:
+        print(f"{col}: High cardinality (apply Label Encoding)") #looks like we're gonna do label encoding
+
+# Apply Label Encoding
+# Initialize the LabelEncoder
+le = LabelEncoder()
+
+# Apply Label Encoding to each categorical column
+for col in categorical_columns:
+    df[col] = le.fit_transform(df[col])
+
+print("Label Encoding completed!")
+
+# Check if the encoding worked correctly
+print(df.head())
+
+
+
+
+
+# print(df.info())
+# # print(df.head())
