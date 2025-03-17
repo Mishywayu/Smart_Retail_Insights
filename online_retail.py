@@ -2,6 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt #for visualization
 import seaborn as sns #for visualization
 from sklearn.preprocessing import LabelEncoder #for label encoding
+from scipy.stats import skew #checking skewed values
+import numpy as np #for log transformation
 
 # load the dataset file
 df = pd.read_csv("online_retail.csv\online_retail.csv")
@@ -85,7 +87,7 @@ plt.subplot(1, 2, 2)
 sns.boxplot(x=df['UnitPrice'])
 plt.title("Box Plot - Unit Price")
 
-# plt.show()
+plt.show()
 
 print(f"Size of dataset before removing outliers: {df.shape}")
 
@@ -121,11 +123,77 @@ for col in categorical_columns:
 print("Label Encoding completed!")
 
 # Check if the encoding worked correctly
-print(df.head())
+# print(df.head())
 
 
 
 
+#• Feature Engineering
+#creating new features
+# -- creating total price column
+df['TotalPrice'] = df['Quantity'] * df['UnitPrice']
 
+# -- extract Date Components
+df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])  # Convert to datetime
+df['Year'] = df['InvoiceDate'].dt.year
+df['Month'] = df['InvoiceDate'].dt.month
+df['Day'] = df['InvoiceDate'].dt.day
+df['DayOfWeek'] = df['InvoiceDate'].dt.dayofweek  # Monday = 0, Sunday = 6 (#can come in handy when identifying trends)
+df['Hour'] = df['InvoiceDate'].dt.hour #can be useful when highlighting peak purchase times
+
+
+#check if we have skewed data (using historgram)
+# sns.histplot(df['TotalPrice'], bins=50, kde=True)  
+# plt.title("Distribution of Total Price")  
+# plt.show()
+
+# sns.histplot(df['UnitPrice'], bins=50, kde=True)  
+# plt.title("Distribution of Unit Price")  
+# plt.show()
+
+# print("Skewness:", skew(df['TotalPrice']))   #Skewness: -0.03482786149396841
+# print("Skewness:", skew(df['UnitPrice']))  #Skewness: 1.113464331993444
+
+# # Log Transformation for Skewed Data
+# df['Log_UnitPrice'] = np.log1p(df['UnitPrice'])
+# df['Log_TotalPrice'] = np.log1p(df['TotalPrice'])
 # print(df.info())
-# # print(df.head())
+
+
+# Aggregating Customer Behavior
+# lets see how much a customer spends
+customer_spending = df.groupby('CustomerID')['TotalPrice'].sum().reset_index()
+customer_spending.rename(columns={'TotalPrice': 'Total_Spending'}, inplace=True)
+
+
+#average order per customer
+customer_orders = df.groupby('CustomerID')['InvoiceNo'].nunique().reset_index()
+customer_orders.rename(columns={'InvoiceNo': 'Total_Orders'}, inplace=True)
+customer_spending = customer_spending.merge(customer_orders, on='CustomerID')
+customer_spending['Avg_Order_Value'] = customer_spending['Total_Spending'] / customer_spending['Total_Orders']
+
+
+#Total Items Purchased by Each Customer
+customer_items = df.groupby('CustomerID')['Quantity'].sum().reset_index()
+customer_items.rename(columns={'Quantity': 'Total_Items'}, inplace=True)
+customer_spending = customer_spending.merge(customer_items, on='CustomerID')
+
+
+#Number of Unique Products Purchased
+customer_products = df.groupby('CustomerID')['StockCode'].nunique().reset_index()
+customer_products.rename(columns={'StockCode': 'Unique_Products'}, inplace=True)
+customer_spending = customer_spending.merge(customer_products, on='CustomerID')
+
+
+# Number of Transactions per Customer
+customer_transactions = df.groupby('CustomerID')['InvoiceNo'].count().reset_index()
+customer_transactions.rename(columns={'InvoiceNo': 'Total_Transactions'}, inplace=True)
+customer_spending = customer_spending.merge(customer_transactions, on='CustomerID')
+
+# Checking the Final Customer-Level Dataset
+print(customer_spending.head())
+print(customer_spending.shape)
+print(customer_spending.info())
+
+#Saving this as a csv file
+customer_spending.to_csv("customer_level_dataset.csv", index=False)
